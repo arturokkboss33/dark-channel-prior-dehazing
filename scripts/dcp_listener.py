@@ -14,6 +14,17 @@ import numpy as np
 #from PIL import Image as PILImage
 #from dehaze import dehaze
 
+
+def white_balance(img):
+    result = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    avg_a = np.average(result[:, :, 1])
+    avg_b = np.average(result[:, :, 2])
+    result[:, :, 1] = result[:, :, 1] - ((avg_a - 128) * (result[:, :, 0] / 255.0) * 1.1)
+    result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
+    result = cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
+    return result
+
+
 def get_atmosphere(img, depth):
     
     M, N = depth.shape
@@ -42,7 +53,7 @@ def dcp_callback(stereo_image_msg, depth_msg):
     print("Got it")
     # Global params - TODO read them from a config file
     global radiance_pub
-    attenuation_coeff = np.array([0.0001,0.003,0.006])
+    attenuation_coeff = np.array([0.005,0.01,0.01])
     # atmospheric_vals = np.zeros((1,1,3),dtype=np.float)
     # atmospheric_vals[0,0,0] = 113
     # atmospheric_vals[0,0,1] = 154
@@ -50,12 +61,19 @@ def dcp_callback(stereo_image_msg, depth_msg):
 
     # Receive the images and transform them into arrays
     my_cvbridge = CvBridge()
-    stereo_image = my_cvbridge.imgmsg_to_cv2(stereo_image_msg,"bgr8");
-    depth_image = my_cvbridge.imgmsg_to_cv2(depth_msg,"32FC1");
+    stereo_image = my_cvbridge.imgmsg_to_cv2(stereo_image_msg,"bgr8")
+    depth_image = my_cvbridge.imgmsg_to_cv2(depth_msg,"32FC1")
+
+    # Optional - Insert white balance method for further refinement
+    wb_stereo_image = white_balance(stereo_image)
 
     # Compute the atmospheric light
     atmospheric_vals = np.minimum(get_atmosphere(stereo_image,depth_image),255)
-    print(atmospheric_vals)
+    #atmospheric_vals = np.zeros((3),dtype=np.float)
+    atmospheric_vals[0] = 255.
+    atmospheric_vals[1] = 180.
+    atmospheric_vals[2] = 18.
+    #print(atmospheric_vals)
 
     # Convert the depth image into grayscale and compute transmission function    
     depth_image = np.nan_to_num(depth_image)*255.
@@ -87,7 +105,7 @@ def init():
     radiance_pub = rospy.Publisher('/stereo_camera/right/radiance', Image, queue_size=10)
 
     image_sub = message_filters.Subscriber(
-        '/real/stereo_camera/right/image_uncomp', Image)
+        '/stereo_camera/right/image_uncomp', Image)
     depth_sub = message_filters.Subscriber('/depth_camera/depth/image_raw', Image)
 
     ts = message_filters.ApproximateTimeSynchronizer(
