@@ -49,6 +49,8 @@ def main():
                         help="window size of dark channel")
     parser.add_argument("-r", "--radius", type=int, default=40,
                         help="radius of guided filter")
+    parser.add_argument("-fuw", "--enable_underwater", type=bool, default=False,
+                        help="enable DCP for underwater images")
 
     args = parser.parse_args()
 
@@ -61,7 +63,8 @@ def main():
             #print(src);print(dest); #DEBUGGING LINE
             dest = dest + ("_%d%s_%d_%d_%d" % (args.tmin * 100, "e-2", args.Amax, args.window, args.radius))
             #print(dest) #DEBUGGING LINE
-            generate_results(src, dest, partial(dehaze, t_min=args.tmin, atm_max=args.Amax, w=args.window, r=args.radius))
+            generate_results(src, dest, partial(dehaze, t_min=args.tmin, atm_max=args.Amax, 
+                                                w=args.window, r=args.radius, flag_uw=args.enable_underwater))
     else:
         print("No input files were given")
     

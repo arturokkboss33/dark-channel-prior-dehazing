@@ -67,26 +67,26 @@ def get_atmosphere(I, dark_ch, p):
     return np.max(flat_I.take(search_idx, axis=0), axis=0)
 
 
-def get_transmission(I, A, omega, w):
+def get_transmission(I, atm_light, omega, w):
     """Get the transmission esitmate in the (RGB) image data.
 
     Parameters
     -----------
-    I:       the M * N * 3 RGB image data ([0, max_color_val-1]) as numpy array
-    A:       a 3-element array containing atmosphere light
-             ([0, max_color_val-1]) for each channel
-    omega:   bias for the estimate
-    w:       window size for the estimate
+    I:          the M * N * 3 RGB image data ([0, max_color_val-1]) as numpy array
+    atm_light:a 3-element array containing atmosphere light
+                ([0, max_color_val-1]) for each channel
+    omega:      bias for the estimate
+    w:          window size for the estimate
 
     Return
     -----------
     An M * N array containing the transmission rate ([0.0, 1.0])
     """
-    return 1 - omega * get_dark_channel(I / A, w)  # CVPR09, eq.12
+    return 1 - omega * get_dark_channel(I / atm_light, w)  # CVPR09, eq.12
 
 
 def dehaze_raw(I, t_min=0.2, atm_max=220, w=15, p=0.0001,
-               omega=0.95, guided=True, r=40, eps=1e-3):
+               omega=0.95, guided=True, r=40, eps=1e-3, flag_uw=False):
     """Get the dark channel prior, atmosphere light, transmission rate
        and refined transmission rate for raw RGB image data.
 
@@ -98,6 +98,7 @@ def dehaze_raw(I, t_min=0.2, atm_max=220, w=15, p=0.0001,
     w:      window size of the dark channel prior
     p:      percentage of pixels for estimating the atmosphere light
     omega:  bias for the transmission estimate
+    flag_uw:enable DCP for underwater imgs
 
     guided: whether to use the guided filter to fine the image
     r:      the radius of the guidance
@@ -108,27 +109,25 @@ def dehaze_raw(I, t_min=0.2, atm_max=220, w=15, p=0.0001,
     (Idark, A, rawt, refinedt) if guided=False, then rawt == refinedt
     """
     
-    ##>ONLY FOR UNDERWATER IMAGES
-    # Iuw = np.zeros(I.shape,dtype=np.float64)
-    # Iuw[:,:,0] = 255. - I[:,:,0]
-    # Iuw[:,:,1] = 255. - I[:,:,1]
-    # Iuw[:,:,2] = I[:,:,2]
-    # Idark = get_dark_channel(Iuw, w)
+    ##NOTE:First, get dark channel image
+    ##NOTE:Change color space if dealing with underwater images
+    Iprime = np.zeros(I.shape,dtype=np.float64)
+    if flag_uw:
+        Iprime[:,:,0] = 255. - I[:,:,0]
+        Iprime[:,:,1] = 255. - I[:,:,1]
+        Iprime[:,:,2] = I[:,:,2]
+    else:
+        Iprime = I
+    Idark = get_dark_channel(Iprime, w)
 
-    ##NOTE:First, get dark channel image. 
-    Idark = get_dark_channel(I, w)
-
-    ##NOTE:Estimate the atmospheric light
+    ##NOTE:Estimate the atmospheric light, this is done always with the original image
     atm_light = get_atmosphere(I, Idark, p)
     atm_light = np.minimum(atm_light, atm_max)
-    print 'atmosphere', atm_light
+    print('atmosphere', atm_light)
 
     ##NOTE:Estimate transmission image which correlates to depth
-    rawt = get_transmission(I, atm_light, omega, w)
-    #For uw image
-    #rawt = get_transmission(Iuw, A, Idark, omega, w)
-    print 'raw transmission rate',
-    print 'between [%.4f, %.4f]' % (rawt.min(), rawt.max())
+    rawt = get_transmission(Iprime, atm_light, omega, w)
+    print('raw transmission rate between [%.4f, %.4f]' % (rawt.min(), rawt.max()))
 
     ##NOTE: Refine transmission rate through guided filter (edge-preserving filter)
     rawt = refinedt = np.maximum(rawt, t_min)
@@ -136,8 +135,7 @@ def dehaze_raw(I, t_min=0.2, atm_max=220, w=15, p=0.0001,
         normI = (I - I.min()) / (I.max() - I.min())
         refinedt = guided_filter(normI, refinedt, r, eps)
 
-    print 'refined transmission rate',
-    print 'between [%.4f, %.4f]' % (refinedt.min(), refinedt.max())
+    print('refined transmission rate between [%.4f, %.4f]' % (refinedt.min(), refinedt.max()))
 
     return Idark, atm_light, rawt, refinedt
 
@@ -185,14 +183,15 @@ def to_img(raw):
     return Image.fromarray(cut)
 
 def dehaze(img, t_min=0.2, atm_max=220, w=15, p=0.0001,
-           omega=0.95, guided=True, r=40, eps=1e-3):
+           omega=0.95, guided=True, r=40, eps=1e-3, flag_uw=False):
     """Dehaze the given RGB image.
 
     Parameters
     ----------
     img:     the Image object of the RGB image
-    guided: refine the dehazing with guided filter or not
+    guided:  refine the dehazing with guided filter or not
     other parameters are the same as `dehaze_raw`
+    flag_uw: change DCP computation to adjust to underwater imgs
 
     Return
     ----------
@@ -204,7 +203,7 @@ def dehaze(img, t_min=0.2, atm_max=220, w=15, p=0.0001,
     
     I = np.asarray(img, dtype=np.float64)
     Idark, atm_light, rawt, refinedt = dehaze_raw(I, t_min, atm_max, w, p,
-                                          omega, guided, r, eps)
+                                          omega, guided, r, eps, flag_uw)
     white = np.full_like(Idark, max_color_val - 1)
 
     return [to_img(raw) for raw in (Idark, white * rawt, white * refinedt,
