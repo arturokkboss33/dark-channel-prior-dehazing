@@ -1,21 +1,16 @@
 ##Dependencies
 
-1. pillow(~2.6.0)
-2. Numpy(~1.9.0)
+* The file **requirements.txt** contains the main dependencies to run the python scripts.
+* When using *Anaconda* as a package manager, the file **dark-channel-prior-dehazing.yml** can be used to create a python environment with the same package versions as when tested. 
+* If the scripts throw `AttributeError: __float__`, make sure your pillow has jpeg support e.g. try:
 
-If the scripts throw `AttributeError: __float__`, make sure your pillow has jpeg support e.g. try:
+##Run Dark Channel Prior Dehazing (DCP)
 
-    $ sudo apt-get install libjpeg-dev
-    $ sudo pip uninstall pillow
-    $ sudo pip install pillow
+1. Change the DCP parameter values in the config file `config/YOUR_CONFIG_FILE.yml` or create your own.
+2. Enter the `src` directory, run `python main.py -config YOUR_CONFIG_FILE.yml`. 
+3. It will use images under `imgs` directory as default to produce the results. The results will show up in `results` directory.
 
-##How to generate the results
 
-Enter the `src` directory, run `python main.py`. It will use images under `img` directory as default to produce the results. The results will show up in `result` directory.
-
-To test special configurations for a given image, for example, to test the image with index `0` (check `IMG_NAMES` in `util.py` for indexes) and `tmin = 0.2`, `Amax = 170`, `w = 15`, `r = 40`, run
-
-    $ python main.py -i 0 -t 0.2 -A 170 -w 15 -r 40
 
 ## Naming convetion of the results
 
