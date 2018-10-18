@@ -6,6 +6,7 @@ import os
 from functools import partial
 from PIL import Image
 from dehaze import dehaze
+import yaml
 
 def set_filenames(img_name,depth_img=None):
     """Return tuples for source and template destination"""
@@ -48,47 +49,43 @@ def main():
     """Parse users arguments and apply DCP to each specified file."""
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-i", "--input", type=str,
-                        help="image filename")
-    parser.add_argument("-t", "--tmin", type=float, default=0.2,
-                        help="minimum transmission rate")
-    parser.add_argument("-A", "--Amax", type=int, default=220,
-                        help="maximum atmosphere light")
-    parser.add_argument("-w", "--window", type=int, default=15,
-                        help="window size of dark channel")
-    parser.add_argument("-r", "--radius", type=int, default=40,
-                        help="radius of guided filter")
-    parser.add_argument("-fuw", "--enable_underwater", type=bool, default=False,
-                        help="enable DCP for underwater images")
-    parser.add_argument("-depth", "--depth", type=str,
-                        help="depth image")
+    parser.add_argument("-config", "--config", type=str,
+                        help="config file with DCP parameters")
 
     args = parser.parse_args()
 
+    ##NOTE:Read config file with all params
+    file_dir = os.path.dirname(os.path.realpath(__file__))
+    config_file = os.path.join(os.path.split(file_dir)[0],'config/'+args.config)
+    config_dict = yaml.safe_load(open(config_file,'r'))
+    #print(config_dict['filter_radius']) #DEBUGGING LINE
+
     ##NOTE:Loop through each file and apply DCP
-    if args.input is not None:
-        img_files = args.input.split(" ")
+    if config_dict['input']:
+        img_files = config_dict['input'].split(" ")
         #print(img_files) #DEBUGGING LINE
 
         ##NOTE:Check if a depth image was given
         flag_use_depth = False
         depth_img_src = None
         depth_files = []
-        if args.depth is not None:
-            depth_files = args.depth.split(" ")
+        if config_dict['depth_image']:
+            depth_files = config_dict['depth_image'].split(" ")
             flag_use_depth = True
         for img_idx,img in enumerate(img_files):
             if flag_use_depth is False:
                 src, dest = set_filenames(img)
-                print(src);print(dest); #DEBUGGING LINE
+                #print(src);print(dest) #DEBUGGING LINE
             else:
                 src, dest, depth_img_src = set_filenames(img,depth_files[img_idx])
-                print(src);print(dest);print(depth_img_src) #DEBUGGING LINE
+                #print(src);print(dest);print(depth_img_src) #DEBUGGING LINE
 
-            dest = dest + ("_%d%s_%d_%d_%d" % (args.tmin * 100, "e-2", args.Amax, args.window, args.radius))
+            dest = dest + ("_%d%s_%d_%d_%d" % (config_dict['min_transmission'] * 100, "e-2", 
+                                                config_dict['max_atm_light'], config_dict['window'], config_dict['filter_radius']))
             #print(dest) #DEBUGGING LINE
-            generate_results(src, dest, partial(dehaze, t_min=args.tmin, atm_max=args.Amax, w=args.window, 
-                                               r=args.radius, flag_uw=args.enable_underwater), depth_img_src)
+            generate_results(src, dest, partial(dehaze, t_min=config_dict['min_transmission'], atm_max=config_dict['max_atm_light'], 
+                                                w=config_dict['window'], r=config_dict['filter_radius'], 
+                                                flag_uw=config_dict['underwater_dehaze']), depth_img_src)
     else:
         print("No input files were given")
     
