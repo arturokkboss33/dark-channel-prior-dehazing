@@ -1,8 +1,8 @@
-input: 'panel_1.png'
-depth_image: 'panel_1_depth.png'
+input: 'city.png'
+depth_image: ''
 min_transmission: 0.2
 max_atm_light: 220
 window: 15
 filter_radius: 40
-underwater_dehaze: True
+underwater_dehaze: False
 
