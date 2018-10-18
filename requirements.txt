@@ -1,0 +1,6 @@
+# This file contains the main dependencies
+# for this pyhton environment
+numpy=1.15.1=py27h1d66e8a_0
+pillow=5.2.0=py27heded4f4_0
+python=2.7.15=h1571d57_0
+pyyaml=3.13=py27h14c3975_0
