@@ -95,6 +95,7 @@ class DCPDehaze():
             flat_depth = np.maximum(np.minimum(flat_depth, 255.), 0.0001)/255.
             flat_image = src_image.reshape(depth_image.shape[0]*depth_image.shape[1], 3)
             ##TODO:Have a closer look at how atmosphere light affects the end wb_image
+            #return np.array([255.,180.,18.])
             return np.average(flat_image, axis=0, weights=1./flat_depth)
         else:
             ##NOTE: CVPR09, eq. 4.4
@@ -111,8 +112,10 @@ class DCPDehaze():
     
     def get_radiance(self,src_image, trans_image, depth_image=None):
         ##NOTE: Tile transmission image
-        tiled_trans = np.zeros_like(src_image)
+        tiled_trans = np.zeros_like(src_image,dtype=np.float32)
         if depth_image is not None:
+            depth_image = np.nan_to_num(depth_image)*255.
+            depth_image = np.maximum(np.minimum(depth_image, 255.), 0.0001)
             transmission_B = np.exp(-self.attenuation_coeffs[0]*depth_image)
             transmission_G = np.exp(-self.attenuation_coeffs[1]*depth_image)
             transmission_R = np.exp(-self.attenuation_coeffs[2]*depth_image)
@@ -123,7 +126,7 @@ class DCPDehaze():
             tiled_trans[:, :, B] = tiled_trans[:, :, G] = tiled_trans[:, :, R] = trans_image
 
         ##NOTE: CVPR09, eq.16
-        return (src_image -self.atm_light) / tiled_trans + self.atm_light
+        return (src_image.astype(float) -self.atm_light) / tiled_trans + self.atm_light
     
     def white_balance(self,src_img):
         wb_image = cv2.cvtColor(src_img, cv2.COLOR_BGR2LAB)
