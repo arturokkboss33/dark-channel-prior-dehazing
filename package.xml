@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>dcp_uw_dehaze</name>
+  <name>dcp_dehaze</name>
   <version>0.0.0</version>
   <description>The dcp_uw_dehaze package</description>
 

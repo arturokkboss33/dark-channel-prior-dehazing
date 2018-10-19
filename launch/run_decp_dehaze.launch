@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!-- config file -->
+    <arg name="dcp_config_file" default="$(find dcp_dehaze)/config/dcp_params.yml" />    
+
+    <node name="dcp_listener" type="dcp_listener.py" pkg="dcp_dehaze" respawn="false" output="screen">
+      <param name="config_filename" type="str" value="$(arg dcp_config_file)"/>   
+    </node>
+
+</launch>

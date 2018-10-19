@@ -3,7 +3,7 @@
 
 #ROS libraries
 import roslib
-roslib.load_manifest('dcp_uw_dehaze')
+roslib.load_manifest('dcp_dehaze')
 import sys
 import rospy
 import rospkg
@@ -13,13 +13,14 @@ from cv_bridge import CvBridge, CvBridgeError
 #Python libraries
 import numpy as np
 import cv2
+from yaml import load, dump, Loader, Dumper
 #Classes
 from dcp_dehaze import DCPDehaze
 
 # ===CALLBACK TO PERFORM DEHAZING
 def dcp_callback(stereo_image_msg, depth_msg):
 
-    print("Got it")
+    #print("Got it")
     # Global params - TODO read them from a config file
     global radiance_pub
     global dehazer
@@ -31,7 +32,7 @@ def dcp_callback(stereo_image_msg, depth_msg):
 
     # Dehaze image
     radiance = dehazer.dehaze(stereo_image,depth_image)
-    print(dehazer.enable_underwater)
+    #print(dehazer.enable_underwater)
 
     # Convert to ROS msg and publish
     radiance_msg = my_cvbridge.cv2_to_imgmsg(radiance, "bgr8")
@@ -44,15 +45,22 @@ def init():
     global radiance_pub
     global dehazer
 
-    dehazer = DCPDehaze(trans_min=0.2,atm_max=220,window_size=15,guided_filter_radius=40,
-                        enable_underwater=True,attenuation_coeffs=[0.005,0.01,0.01],enable_wb=False)
-    radiance_pub = rospy.Publisher('/stereo_camera/left/radiance', Image, queue_size=10)
-    image_sub = message_filters.Subscriber(
-        '/stereo_camera/left/image_uncomp', Image)
-    depth_sub = message_filters.Subscriber('/depth_camera/depth/image_raw', Image)
+    config_file = rospy.get_param('~config_filename')
+    config_dict = load(file(config_file, 'r'), Loader=Loader)
 
-    ts = message_filters.ApproximateTimeSynchronizer(
-        [image_sub, depth_sub], 10, 0.1)
+    dehazer = DCPDehaze(trans_min=config_dict['minimum_transmission'],
+                        atm_max=config_dict['max_atm_light'],
+                        window_size=config_dict['dehaze_window_size'],
+                        guided_filter_radius=config_dict['guided_filter_radius'],
+                        enable_underwater=config_dict['enable_underwater'],
+                        attenuation_coeffs=config_dict['light_attenuation_coeffs'],
+                        enable_wb=config_dict['enable_white_balance'])
+
+    radiance_pub = rospy.Publisher(config_dict['dehazed_image_topic'], Image, queue_size=10)
+    image_sub = message_filters.Subscriber(config_dict['hazed_image_topic'], Image)
+    depth_sub = message_filters.Subscriber(config_dict['depth_image_topic'], Image)
+
+    ts = message_filters.ApproximateTimeSynchronizer([image_sub, depth_sub], 10, 0.1)
     ts.registerCallback(dcp_callback)
 
 

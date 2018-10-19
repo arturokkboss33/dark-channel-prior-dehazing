@@ -1,0 +1,11 @@
+hazed_image_topic: '/stereo_camera/left/image_uncomp'
+depth_image_topic: '/depth_camera/depth/image_raw'
+dehazed_image_topic: '/stereo_camera/left/radiance'
+
+minimum_transmission: 0.2
+max_atm_light: 220
+dehaze_window_size: 15
+guided_filter_radius: 40
+enable_underwater: true
+light_attenuation_coeffs: [.005,.01,.01]
+enable_white_balance: false
