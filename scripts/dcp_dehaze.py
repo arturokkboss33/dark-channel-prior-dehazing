@@ -15,7 +15,7 @@ class DCPDehaze():
     _R,_G,_B = 0,1,2
     _max_color_val = 256
     _transmission_bias = 0.95
-    _atm_pixel_percent = 0.001
+    _atm_pixel_percent = 0.0001
     _guided_filter_eps = 1e-3
 
     ##NOTE:Constructor with default values
@@ -89,8 +89,8 @@ class DCPDehaze():
             flat_depth = np.nan_to_num(flat_depth)*255.
             flat_depth = np.maximum(np.minimum(flat_depth, 255.), 0.0001)/255.
             flat_image = src_image.reshape(depth_image.shape[0]*depth_image.shape[1], 3)
-
-            return np.average(flat_image, axis=0, weights=flat_depth)
+            ##TODO:Have a closer look at how atmosphere light affects the end result
+            return np.average(flat_image, axis=0, weights=1./flat_depth)
         else:
             ##NOTE: CVPR09, eq. 4.4
             flat_image = src_image.reshape(src_image.shape[0]*src_image.shape[1], 3)
