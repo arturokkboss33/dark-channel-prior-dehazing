@@ -16,17 +16,6 @@ import cv2
 #Classes
 from dcp_dehaze import DCPDehaze
 
-
-
-def white_balance(img):
-    result = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    avg_a = np.average(result[:, :, 1])
-    avg_b = np.average(result[:, :, 2])
-    result[:, :, 1] = result[:, :, 1] - ((avg_a - 128) * (result[:, :, 0] / 255.0) * 1.1)
-    result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
-    result = cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
-    return result
-
 # ===CALLBACK TO PERFORM DEHAZING
 def dcp_callback(stereo_image_msg, depth_msg):
 
@@ -39,9 +28,6 @@ def dcp_callback(stereo_image_msg, depth_msg):
     my_cvbridge = CvBridge()
     stereo_image = my_cvbridge.imgmsg_to_cv2(stereo_image_msg,"bgr8")
     depth_image = my_cvbridge.imgmsg_to_cv2(depth_msg,"32FC1")
-
-    # Optional - Insert white balance method for further refinement
-    wb_stereo_image = white_balance(stereo_image)
 
     # Dehaze image
     radiance = dehazer.dehaze(stereo_image,depth_image)
@@ -59,7 +45,7 @@ def init():
     global dehazer
 
     dehazer = DCPDehaze(trans_min=0.2,atm_max=220,window_size=15,guided_filter_radius=40,
-                        enable_underwater=True,attenuation_coeffs=[0.005,0.01,0.01])
+                        enable_underwater=True,attenuation_coeffs=[0.005,0.01,0.01],enable_wb=False)
     radiance_pub = rospy.Publisher('/stereo_camera/left/radiance', Image, queue_size=10)
     image_sub = message_filters.Subscriber(
         '/stereo_camera/left/image_uncomp', Image)

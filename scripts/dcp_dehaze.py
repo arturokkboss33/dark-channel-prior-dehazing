@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """Implementation for Single Image Haze Removal Using Dark Channel Prior."""
-
+import cv2
 import numpy as np
 from PIL import Image
 from guidedfilter import guided_filter
@@ -20,19 +20,24 @@ class DCPDehaze():
 
     ##NOTE:Constructor with default values
     def __init__(self,trans_min=0.2,atm_max=220,window_size=15,guided_filter_radius=40,
-                enable_underwater=False,attenuation_coeffs=None):
+                enable_underwater=False,attenuation_coeffs=None,enable_wb=False):
         self.trans_min = trans_min
         self.atm_max = atm_max
         self.window_size = window_size
         self.guided_filter_radius = guided_filter_radius
         self.attenuation_coeffs = attenuation_coeffs
         self.enable_underwater = enable_underwater
+        self.enable_wb = enable_wb
         self.atm_light = None
     
     ##NOTE: Functions necessary to perform dehazing
 
     ##NOTE: Main dehaze function, runs the DCP pipeline
     def dehaze(self,src_image,depth_image=None):
+
+        ##NOTE:Check if white balance is required
+        if self.enable_wb:
+            src_image = self.white_balance(src_image)
 
         ##NOTE:Check if depth image was provided
         flag_use_depth = True if depth_image is not None else False
@@ -89,7 +94,7 @@ class DCPDehaze():
             flat_depth = np.nan_to_num(flat_depth)*255.
             flat_depth = np.maximum(np.minimum(flat_depth, 255.), 0.0001)/255.
             flat_image = src_image.reshape(depth_image.shape[0]*depth_image.shape[1], 3)
-            ##TODO:Have a closer look at how atmosphere light affects the end result
+            ##TODO:Have a closer look at how atmosphere light affects the end wb_image
             return np.average(flat_image, axis=0, weights=1./flat_depth)
         else:
             ##NOTE: CVPR09, eq. 4.4
@@ -119,3 +124,12 @@ class DCPDehaze():
 
         ##NOTE: CVPR09, eq.16
         return (src_image -self.atm_light) / tiled_trans + self.atm_light
+    
+    def white_balance(self,src_img):
+        wb_image = cv2.cvtColor(src_img, cv2.COLOR_BGR2LAB)
+        avg_a = np.average(wb_image[:, :, 1])
+        avg_b = np.average(wb_image[:, :, 2])
+        wb_image[:, :, 1] = wb_image[:, :, 1] - ((avg_a - 128) * (wb_image[:, :, 0] / 255.0) * 1.1)
+        wb_image[:, :, 2] = wb_image[:, :, 2] - ((avg_b - 128) * (wb_image[:, :, 0] / 255.0) * 1.1)
+        wb_image = cv2.cvtColor(wb_image, cv2.COLOR_LAB2BGR)
+        return wb_image
