@@ -108,7 +108,7 @@ class DCPDehaze():
     
     def get_transmission(self,src_image):
         ##NOTE: CVPR09, eq.12
-        return 1 - self._transmission_bias * self.get_dark_channel(src_image / self.atm_light, self.window_size)
+        return 1 - self._transmission_bias * self.get_dark_channel(src_image / self.atm_light)
     
     def get_radiance(self,src_image, trans_image, depth_image=None):
         ##NOTE: Tile transmission image

@@ -18,7 +18,7 @@ from yaml import load, dump, Loader, Dumper
 from dcp_dehaze import DCPDehaze
 
 # ===CALLBACK TO PERFORM DEHAZING
-def dcp_callback(stereo_image_msg, depth_msg):
+def dcp_callback(stereo_image_msg, depth_msg=None):
 
     #print("Got it")
     # Global params - TODO read them from a config file
@@ -28,7 +28,9 @@ def dcp_callback(stereo_image_msg, depth_msg):
     # Receive the images and transform them into arrays
     my_cvbridge = CvBridge()
     stereo_image = my_cvbridge.imgmsg_to_cv2(stereo_image_msg,"bgr8")
-    depth_image = my_cvbridge.imgmsg_to_cv2(depth_msg,"32FC1")
+    depth_image = None
+    if depth_msg is not None:
+        depth_image = my_cvbridge.imgmsg_to_cv2(depth_msg,"32FC1")
 
     # Dehaze image
     radiance = dehazer.dehaze(stereo_image,depth_image)
@@ -57,11 +59,15 @@ def init():
                         enable_wb=config_dict['enable_white_balance'])
 
     radiance_pub = rospy.Publisher(config_dict['dehazed_image_topic'], Image, queue_size=10)
-    image_sub = message_filters.Subscriber(config_dict['hazed_image_topic'], Image)
-    depth_sub = message_filters.Subscriber(config_dict['depth_image_topic'], Image)
-
-    ts = message_filters.ApproximateTimeSynchronizer([image_sub, depth_sub], 10, 0.1)
-    ts.registerCallback(dcp_callback)
+    if config_dict['depth_image_topic'] is None or config_dict['depth_image_topic']=='':
+        image_sub = rospy.Subscriber(config_dict['hazed_image_topic'], Image,dcp_callback,queue_size=1)
+    else:
+        ##NOTE:Since depth is provided, there is no need to indicate the image is underwater
+        dehazer.enable_underwater = False
+        image_sub = message_filters.Subscriber(config_dict['hazed_image_topic'], Image)
+        depth_sub = message_filters.Subscriber(config_dict['depth_image_topic'], Image)
+        ts = message_filters.ApproximateTimeSynchronizer([image_sub, depth_sub], 10, 0.1)
+        ts.registerCallback(dcp_callback)
 
 
 # ===MAIN
