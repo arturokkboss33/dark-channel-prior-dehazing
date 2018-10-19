@@ -1,15 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Implementation for Guided Image Filtering
-
-Reference:
-http://research.microsoft.com/en-us/um/people/kahe/eccv10/
-"""
+"""Implementation for Guided Image Filtering"""
 
 from itertools import combinations_with_replacement
 from collections import defaultdict
-
 import numpy as np
 from numpy.linalg import inv
 
